@@ -97,11 +97,13 @@ class database
     $this->dbType = $adodb_driver = $db_type;
     $fetch_mode = ADODB_FETCH_ASSOC;
     
+    $isPHPGTE7 = version_compare(phpversion(), "7.0.0", ">=");
+
     // added to reduce memory usage (before this setting we used ADODB_FETCH_BOTH)
     if($this->dbType == 'mssql')
     {
       $fetch_mode = ADODB_FETCH_BOTH;
-      if(PHP_OS == 'WINNT')
+      if(PHP_OS == 'WINNT' || $isPHPGTE7)
       {
         // Faced this problem when testing XAMPP 1.7.7 on Windows 7 with MSSQL 2008 Express
         // From PHP MANUAL - reganding mssql_* functions
