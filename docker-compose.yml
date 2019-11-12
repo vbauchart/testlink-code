@@ -1,0 +1,29 @@
+version: '2'
+
+services:
+  database:
+    image: 'mcr.microsoft.com/mssql/server:2017-GA-ubuntu'
+    command: "/opt/mssql/bin/sqlservr --accept-eula  --reset-sa-password"
+    environment:
+      - MSSQL_SA_PASSWORD=PASSW0RD
+      - MSSQL_PID=Express
+    ports:
+      - '1433:1433'
+    volumes:
+      - db_data:/var/opt/mssql
+      - files_data:/var/testlink
+      - .:/var/www/html/
+  testlink:
+    build: .
+    volumes:
+      - .:/var/www/html/
+    ports:
+      - 80:80
+  smtp:
+    image: diyan/mailhog
+    ports:
+      - 8025:8025 
+
+volumes:
+  db_data:
+  files_data:
