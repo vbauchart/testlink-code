@@ -85,6 +85,9 @@ function initialize_gui(&$dbHandler,&$argsObj)
                                                                    $gui->req_spec_revision_id,
                                                                    $argsObj->tproject_id);
                                    
+  $idCard = array('parent_id' => $gui->req_spec_id, 'item_id' => $gui->req_spec_revision_id, 'tproject_id' => $argsObj->tproject_id);
+  $gui->jql = getCfJql($req_spec_mgr,$idCard);
+
   $gui->attachments = getAttachmentInfosFrom($req_spec_mgr,$argsObj->req_spec_id);
   $gui->requirements_count = $req_spec_mgr->get_requirements_count($argsObj->req_spec_id);
   
@@ -111,6 +114,15 @@ function initialize_gui(&$dbHandler,&$argsObj)
   return $gui;
 }
 
+function getCfJql($req_spec_mgr,$idCard){
+  $cf_map = $req_spec_mgr->get_linked_cfields($idCard);
+	foreach($cf_map as $k => $f){
+		if($f['name'] == 'jql'){
+			return $f['value'];
+		}		
+	}
+	return '';
+}
 
 function checkRights(&$db,&$user)
 {

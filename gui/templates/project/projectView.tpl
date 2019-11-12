@@ -118,7 +118,7 @@ $(document).ready(function() {
            </a>
       </td>
       <td>
-        {$testproject.notes}
+		{$testproject.notes|strip_tags|strip|truncate:#TESTPROJECT_NOTES_TRUNCATE#}
       </td>
       <td width="10%">
         {$testproject.prefix|escape}

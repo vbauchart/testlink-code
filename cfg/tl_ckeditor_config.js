@@ -36,13 +36,15 @@ CKEDITOR.editorConfig = function( config )
 	];
 	
 	// mini Toolbar
+/* AB160826 */
 	config.toolbar_TestlinkMini = 
-	[
-		['NumberedList','BulletedList','-',
-		 'JustifyLeft','JustifyCenter','JustifyRight','-',
-		 'Bold','Italic','TextColor','-',
-		 'Link','Image','Table']
-	];
+     [
+          ['NumberedList','BulletedList','-',
+          'JustifyLeft','JustifyCenter','JustifyRight','-',
+          'Bold','Italic','TextColor','-',
+                 'Table','Paste','PasteText','-','Font','FontSize']
+     ];
+
 	
 	// Toolbar with all available features - can be used as template for custom toolbars
 	// '-' creates toolbar seperator

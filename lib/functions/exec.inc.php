@@ -444,7 +444,7 @@ function delete_execution(&$db,$exec_id)
   // Attachments NEED special processing.
   
   // get test step exec attachments if any exists
-  $dummy = " SELECT id FROM {$tables['execution_tcsteps']} " . 
+  $dummy = " SELECT tcstep_id AS id FROM {$tables['execution_tcsteps']} " . 
            " WHERE execution_id = {$sid}";
   
   $rs = $db->fetchRowsIntoMap($dummy,'id');

@@ -6784,6 +6784,7 @@ class testplan extends tlObjectWithAttachments
         break;  
         
         default:
+		  $sql2run .= ' ORDER BY exec_id'; //AB: bugfix for Bassem 160113
           $tplan_tcases = $this->db->fetchRowsIntoMap($sql2run,'tcase_id');
         break;  
       }  

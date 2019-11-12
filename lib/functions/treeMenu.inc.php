@@ -1024,8 +1024,21 @@ function filter_by_cf_values(&$db, &$tcase_tree, &$cf_hash, $node_types)
       // TICKET 5186: added "DISTINCT" to SQL clause, detailed explanation follows at the end of function
       // Note: SQL statement has been adopted to filter by latest active tc version.
       // That is a better solution for the explained problem than using the distinct keyword.
+	  // AB170323 Beg fixing http://mantis.testlink.org/view.php?id=7851
+      //$latest_active_version_sql = " /* get latest active TC version ID */ " .
+      //                             " SELECT MAX(TCVX.id) AS max_tcv_id, NHTCX.parent_id AS tc_id " .
+      //                             " FROM {$tables['tcversions']} TCVX " .
+      //                             " JOIN {$tables['nodes_hierarchy']} NHTCX " .
+      //                             " ON NHTCX.id = TCVX.id AND TCVX.active = 1 " .
+      //                             " WHERE NHTCX.parent_id = {$node['id']} " .
+      //                             " GROUP BY NHTCX.parent_id, TCVX.tc_external_id ";
+      //      
+      //$sql = " /* $debugMsg */ SELECT CFD.value " .
+      //       " FROM {$tables['cfield_design_values']} CFD, {$tables['nodes_hierarchy']} NH " .
+      //       " JOIN ( $latest_active_version_sql ) LAVSQL ON NH.id = LAVSQL.max_tcv_id " .
+      //       " WHERE CFD.node_id = NH.id ";
       $latest_active_version_sql = " /* get latest active TC version ID */ " .
-                                   " SELECT MAX(TCVX.id) AS max_tcv_id, NHTCX.parent_id AS tc_id " .
+                                   " SELECT MAX(TCVX.version) AS max_tcv_version, NHTCX.parent_id AS tc_id " .								     
                                    " FROM {$tables['tcversions']} TCVX " .
                                    " JOIN {$tables['nodes_hierarchy']} NHTCX " .
                                    " ON NHTCX.id = TCVX.id AND TCVX.active = 1 " .
@@ -1034,8 +1047,10 @@ function filter_by_cf_values(&$db, &$tcase_tree, &$cf_hash, $node_types)
             
       $sql = " /* $debugMsg */ SELECT CFD.value " .
              " FROM {$tables['cfield_design_values']} CFD, {$tables['nodes_hierarchy']} NH " .
-             " JOIN ( $latest_active_version_sql ) LAVSQL ON NH.id = LAVSQL.max_tcv_id " .
-             " WHERE CFD.node_id = NH.id ";
+             " JOIN ( $latest_active_version_sql ) LAVSQL ON NH.parent_id = LAVSQL.tc_id " .
+	  	   " JOIN tcversions TCV ON NH.id = TCV.id  " .
+             " WHERE TCV.version = LAVSQL.max_tcv_version AND CFD.node_id = NH.id ";
+	  // AB170323 End fixing http://mantis.testlink.org/view.php?id=7851
 
       // IMPORTANT DEV NOTES
       // Query uses OR, but final processing makes that CF LOGIC work in AND MODE as expected
@@ -1822,7 +1837,8 @@ function render_reqspec_treenode(&$db, &$node, &$filtered_map, &$map_id_nodetype
       // get doc id from filtered array, it's already stored in there
       $doc_id = '';
       foreach($node['childNodes'] as $child) {
-        if (!is_null($child)) {
+        //if (!is_null($child)) { //http://mantis.testlink.org/view.php?id=8283
+        if ( is_array($child) ) { //https://github.com/TestLinkOpenSourceTRMS/testlink-code/commit/072ad39f4daa308a760ff27bb9d48bac825f12e2
           $child_id = $child['id'];
           if (isset($filtered_map[$child_id])) {
             $doc_id = htmlspecialchars($filtered_map[$child_id]['req_spec_doc_id']);
@@ -2033,7 +2049,8 @@ function generateTestSpecTreeNew(&$db,$tproject_id, $tproject_name,$linkto,$filt
                        'ignoreActiveTestCases' => $my['options']['ignore_active_testcases']);
     
     // Important/CRITIC: 
-    // prepareTestSpecNode() will make changes to $test_spec like filtering by test case keywords.
+    //prepareTestSpecNode() will make changes to $test_spec like filtering by test case keywords.
+    prepareTestSpecNode($db, $tproject_mgr,$tproject_id,$test_spec,$map_node_tccount,$pnFilters,$pnOptions,TRUE);
     $testcase_counters = prepareTestSpecNode($db, $tproject_mgr,$tproject_id,$test_spec,$map_node_tccount,
                                              $pnFilters,$pnOptions);
 
@@ -2184,7 +2201,7 @@ function getTestSpecTree($tprojectID,&$tprojectMgr,&$fObj)
  * @internal revisions
  * 20121010 - asimon - TICKET 4353: added active/inactive filter
  */
-function prepareTestSpecNode(&$db, &$tprojectMgr,$tprojectID,&$node,&$map_node_tccount,$filters=null,$options=null)
+function prepareTestSpecNode(&$db, &$tprojectMgr,$tprojectID,&$node,&$map_node_tccount,$filters=null,$options=null,$reset=FALSE)
 {
     
   static $status_descr_list;
@@ -2195,6 +2212,19 @@ function prepareTestSpecNode(&$db, &$tprojectMgr,$tprojectID,&$node,&$map_node_t
   static $decoding_info;
   static $tcFilterByKeywords;
   static $doFilterOn;
+  
+  if($reset){
+    $status_descr_list = NULL;
+	$debugMsg = NULL;
+	$tables = NULL;
+	$my = NULL;
+	$filtersApplied = NULL;
+	$decoding_info = NULL;
+	$tcFilterByKeywords = NULL;
+	$doFilterOn = NULL;
+	return NULL;
+  }
+  
 
   if (!$tables)
   {

@@ -482,10 +482,16 @@ function update($id,$version_id,$reqdoc_id,$title, $scope, $user_id, $status, $t
   {
     $scope = req_link_replace($this->db, $scope, $tproject_id);
   }
-    
-  $reqdoc_id=trim_and_limit($reqdoc_id,$this->fieldSize->req_docid);
-  $title=trim_and_limit($title,$this->fieldSize->req_title);
-  $chk=$this->check_basic_data($srs_id,$tproject_id,$title,$reqdoc_id,$id);
+
+//AB20151119>
+  if($title!=false){
+    $reqdoc_id=trim_and_limit($reqdoc_id,$this->fieldSize->req_docid);  
+    $title=trim_and_limit($title,$this->fieldSize->req_title);
+    $chk=$this->check_basic_data($srs_id,$tproject_id,$title,$reqdoc_id,$id);
+  }else{
+	  $chk['status_ok'] = true;
+  }
+//<AB20151119
 
   if($chk['status_ok'] || $skip_controls)
   {
@@ -496,24 +502,48 @@ function update($id,$version_id,$reqdoc_id,$title, $scope, $user_id, $status, $t
     
      $sql = array();
 
-      $q = "/* $debugMsg */ UPDATE {$this->tables['nodes_hierarchy']} " .
-           " SET name='" . $this->db->prepare_string($title) . "'";
-      if( !is_null($node_order) )
-      {
-        $q .= ', node_order= ' . abs(intval($node_order));         
-      }
-       $sql[] = $q . " WHERE id={$id}";
-       
-
-      $sql[] = "/* $debugMsg */ UPDATE {$this->tables['requirements']} " .
-               " SET req_doc_id='" . $this->db->prepare_string($reqdoc_id) . "'" .
-               " WHERE id={$id}";
-      
-      $sql_temp = "/* $debugMsg */ UPDATE {$this->tables['req_versions']} " .
-                  " SET scope='" . $this->db->prepare_string($scope) . "', " .
-                  " status='" . $this->db->prepare_string($status) . "', " .
-                  " expected_coverage={$expected_coverage}, " . 
-                  " type='" . $this->db->prepare_string($type) . "' ";
+//AB20141119>
+//      $q = "/* $debugMsg */ UPDATE {$this->tables['nodes_hierarchy']} " .
+//           " SET name='" . $this->db->prepare_string($title) . "'";
+//      if( !is_null($node_order) )
+//      {
+//        $q .= ', node_order= ' . abs(intval($node_order));         
+//      }
+//       $sql[] = $q . " WHERE id={$id}";
+//      $sql[] = "/* $debugMsg */ UPDATE {$this->tables['requirements']} " .
+//               " SET req_doc_id='" . $this->db->prepare_string($reqdoc_id) . "'" .
+//               " WHERE id={$id}";
+//      $sql_temp = "/* $debugMsg */ UPDATE {$this->tables['req_versions']} " .
+//                  " SET scope='" . $this->db->prepare_string($scope) . "', " .
+//                  " status='" . $this->db->prepare_string($status) . "', " .
+//                  " expected_coverage={$expected_coverage}, " . 
+//                  " type='" . $this->db->prepare_string($type) . "' ";
+     if($title!=false){
+        $q = "/* $debugMsg */ UPDATE {$this->tables['nodes_hierarchy']} " .
+             " SET name='" . $this->db->prepare_string($title) . "'";
+        if( !is_null($node_order) )
+        {
+          $q .= ', node_order= ' . abs(intval($node_order));         
+        }
+         $sql[] = $q . " WHERE id={$id}";
+     }
+     if($reqdoc_id!=false){
+        $sql[] = "/* $debugMsg */ UPDATE {$this->tables['requirements']} " .
+                 " SET req_doc_id='" . $this->db->prepare_string($reqdoc_id) . "'" .
+                 " WHERE id={$id}";
+     }
+     if($scope!=false){
+        $sql_temp = "/* $debugMsg */ UPDATE {$this->tables['req_versions']} " .
+                    " SET scope='" . $this->db->prepare_string($scope) . "', " .
+                    " status='" . $this->db->prepare_string($status) . "', " .
+                    " expected_coverage={$expected_coverage}, " . 
+                    " type='" . $this->db->prepare_string($type) . "' ";
+     } else {
+        $sql_temp = "/* $debugMsg */ UPDATE {$this->tables['req_versions']} " .
+                    " SET " .
+                    " status='" . $this->db->prepare_string($status) . "' ";
+     }
+//<AB20141119
       
       // only if no new revision is created set modifier and modification ts
       // otherwise those values are handled by function create_new_revision()
@@ -600,9 +630,7 @@ function update($id,$version_id,$reqdoc_id,$title, $scope, $user_id, $status, $t
       $deleteAll = true;
     
       // I'm trying to speedup the next deletes
-      $sql = "/* $debugMsg */ " .
-             "SELECT NH.id FROM {$this->tables['nodes_hierarchy']} NH " .
-             "WHERE NH.parent_id ";
+      $sql="SELECT NH.id FROM {$this->tables['nodes_hierarchy']} NH WHERE NH.parent_id ";
       if( is_array($id) )
       {
         $sql .=  " IN (" .implode(',',$id) . ") ";
@@ -1397,7 +1425,14 @@ function xmlToMapRequirement($xml_item)
   $dummy['description'] = (string)$xml_item->description;
   $dummy['status'] = (string)$xml_item->status;
   $dummy['type'] = (string)$xml_item->type;
-  $dummy['expected_coverage'] = (int)$xml_item->expected_coverage;
+//AB20150121>
+//  $dummy['expected_coverage'] = (int)$xml_item->expected_coverage;
+  if(isset($xml_item->expected_coverage)){
+    $dummy['expected_coverage'] = (int)$xml_item->expected_coverage;
+  }else{
+    $dummy['expected_coverage'] = 1;
+  }
+//<AB20150121
 
   if( property_exists($xml_item,'custom_fields') )                
   {
@@ -1436,6 +1471,46 @@ function createFromXML($xml,$tproject_id,$parent_id,$author_id,$filters = null,$
   return   $this->createFromMap($reqAsMap,$tproject_id,$parent_id,$author_id,$filters,$options);
 }
 
+//AB20141119>
+function req_status($req,$last_version){
+    $a = $this->db->prepare_string($req['description']);
+    $b = $this->db->prepare_string($last_version['scope']);
+    $a = strip_tags($a);
+    $b = strip_tags($b);
+
+    $r = array("\t", "\n", "\r", '\t', '\n', '\r');
+    $a = str_replace($r, ' ', $a);
+    $b = str_replace($r, ' ', $b);
+
+    $r = '/[\t\n\r\s]+/';
+    $t = trim(preg_replace($r, ' ', $a));
+    while($t != $a){
+        $a = $t;
+        $t = trim(preg_replace($r, ' ', $a));
+    }
+    $t = trim(preg_replace($r, ' ', $b));
+    while($t != $b){
+        $b = $t;
+        $t = trim(preg_replace($r, ' ', $b));
+    }
+    if($a != $b){ 
+        $ret = TL_REQ_STATUS_REVIEW;
+    } else {
+	switch ($last_version['status']) {
+            case '': 
+                $ret = TL_REQ_STATUS_DRAFT; 
+                break;
+            case TL_REQ_STATUS_OBSOLETE: 
+                $ret = TL_REQ_STATUS_REVIEW;
+                break;
+            default: 
+                $ret = $last_version['status']; 
+                break;
+	}
+    }
+    return $ret;
+}
+//<AB20141119
 
 /**
  * createFromMap
@@ -1485,7 +1560,10 @@ function createFromMap($req,$tproject_id,$parent_id,$author_id,$filters = null,$
       $labels[$key] = lang_get($key);
     }  
     $getByAttributeOpt = array('output' => 'id');
-    $getLastChildInfoOpt = array('child_type' => 'version', 'output' => ' CHILD.is_open, CHILD.id ');
+//AB20141114>
+//    $getLastChildInfoOpt = array('child_type' => 'version', 'output' => ' CHILD.is_open, CHILD.id ');
+    $getLastChildInfoOpt = array('child_type' => 'version', 'output' => ' * ');
+//<AB20141114	
   }  
   
   $cf2insert=null;
@@ -1568,10 +1646,22 @@ function createFromMap($req,$tproject_id,$parent_id,$author_id,$filters = null,$
     {
       switch($my['options']['actionOnHit'])
       {
-        case 'update_last_version':
-          $result = $this->update($reqID,$last_version['id'],$req['docid'],$req['title'],$req['description'],
-                                  $author_id,$req['status'],$req['type'],$req['expected_coverage'],
-                                  $req['node_order']);
+        case 'update_last_version': 
+//AB20141114>
+//          $result = $this->update($reqID,$last_version['id'],$req['docid'],$req['title'],$req['description'],
+//                                  $author_id,$req['status'],$req['type'],$req['expected_coverage'],
+//                                  $req['node_order']);          
+		if ($req['status'] != TL_REQ_STATUS_OBSOLETE){
+            $req['status'] = $this->req_status($req,$last_version);
+            $result = $this->update($reqID,$last_version['id'],$req['docid'],$req['title'],$req['description'],
+                                    $author_id,$req['status'],$req['type'],$req['expected_coverage'],
+                                    $req['node_order']);
+          } else {
+              $result = $this->update($reqID,$last_version['id'],$req['docid'],false,false,
+                                    $author_id,TL_REQ_STATUS_OBSOLETE,false,false,
+                                    false);
+          }
+//<AB20141114        
           
           $status_ok = ($result['status_ok'] == 1);
           if( $status_ok)
@@ -2194,6 +2284,12 @@ function html_table_of_custom_field_values($id,$child_id,$tproject_id=null)
     
     $item_id = $this->tree_mgr->new_node($id,$this->node_types_descr_id['requirement_version']);
       
+//AB20141114>
+    if($status == ''){
+        $status = TL_REQ_STATUS_DRAFT; //set to draft when created
+    }    
+//<AB20141114
+    
     $sql = "/* $debugMsg */ INSERT INTO {$this->tables['req_versions']} " .
            " (id,version,scope,status,type,expected_coverage,author_id,creation_ts) " . 
            " VALUES({$item_id},{$version},'" . trim($this->db->prepare_string($scope)) . "','" . 

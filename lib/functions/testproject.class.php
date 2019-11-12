@@ -2929,6 +2929,7 @@ function getTestSpec($id,$filters=null,$options=null)
   }
   
   $method2call = $my['options']['recursive'] ? '_get_subtree_rec' : '_get_subtree';
+  $this->_get_subtree_rec($id,$items,$my['filters'],$my['options'],TRUE);
   $qnum = $this->$method2call($id,$items,$my['filters'],$my['options']);
   return $items;
 }
@@ -2940,7 +2941,8 @@ function getTestSpec($id,$filters=null,$options=null)
  *
  * @internal revisions
  */
-function _get_subtree_rec($node_id,&$pnode,$filters = null, $options = null)
+
+function _get_subtree_rec($node_id,&$pnode,$filters = null, $options = null,$reset = FALSE)
 {
   static $qnum;
   static $my;
@@ -2952,6 +2954,20 @@ function _get_subtree_rec($node_id,&$pnode,$filters = null, $options = null)
   static $childFilterOn;
   static $staticSql;
   static $inClause;
+  
+  if($reset){
+	$qnum = NULL;
+	$my = NULL;
+	$exclude_branches = NULL;
+	$exclude_children_of = NULL;
+	$node_types = NULL;
+	$tcaseFilter = NULL;
+	$tcversionFilter = NULL;
+	$childFilterOn = NULL;
+	$staticSql = NULL;
+	$inClause = NULL;
+	return NULL;
+  }
 
   if (!$my)
   {
@@ -3071,20 +3087,24 @@ function _get_subtree_rec($node_id,&$pnode,$filters = null, $options = null)
   if( !is_null($tclist) )
   {
     $filterOnTC = false;
-    $glav = " /* Get LATEST ACTIVE tcversion ID */ " .  
-            " SELECT MAX(TCVX.id) AS tcversion_id, NHTCX.parent_id AS tc_id " .
+
+    $glvn = " /* Get LATEST ACTIVE tcversion NUMBER */ " .  
+            " SELECT MAX(TCVX.version) AS version, NHTCX.parent_id AS tc_id " .
             " FROM {$this->tables['tcversions']} TCVX " . 
             " JOIN {$this->tables['nodes_hierarchy']} NHTCX " .
             " ON NHTCX.id = TCVX.id AND TCVX.active = 1 " .
             " WHERE NHTCX.parent_id IN (" . implode($tclist,',') . ")" .
-            " GROUP BY NHTCX.parent_id,TCVX.tc_external_id  ";
-
-    $ssx = " /* Get LATEST ACTIVE tcversion MAIN ATTRIBUTES */ " .
+            " GROUP BY NHTCX.parent_id";
+  
+    $ssx = " /* Get LATEST ACTIVE tcversion MAIN ATTRIBUTES */ " .  
            " SELECT TCV.id AS tcversion_id, TCV.tc_external_id AS external_id, SQ.tc_id " .
-            " FROM {$this->tables['tcversions']} TCV " . 
-            " JOIN ( $glav ) SQ " .
-            " ON TCV.id = SQ.tcversion_id ";
-
+           " FROM {$this->tables['nodes_hierarchy']} NHTCV " .
+           " JOIN ( $glvn ) SQ " .
+           " ON NHTCV.parent_id = SQ.tc_id " .
+           " JOIN {$this->tables['tcversions']} TCV " . 
+           " ON NHTCV.id = TCV.id " .
+           " WHERE SQ.version = TCV.version ";
+  
 
     // We can add here keyword filtering if exist ?
     if( $tcversionFilter['enabled'] || $tcaseFilter['is_active'] )
@@ -3093,7 +3113,7 @@ function _get_subtree_rec($node_id,&$pnode,$filters = null, $options = null)
       if ($tcversionFilter['importance'] || $tcversionFilter['execution_type'] || 
           $tcversionFilter['status'] )
       {
-        $ssx .= " WHERE ";
+        $ssx .= " AND ";
       }
            
       if( $tcversionFilter['importance'] )
@@ -3128,6 +3148,8 @@ function _get_subtree_rec($node_id,&$pnode,$filters = null, $options = null)
       }  
     }    
     
+    // echo $ssx;
+
     $highlander = $this->db->fetchRowsIntoMap($ssx,'tc_id');
     if( $filterOnTC )
     {

@@ -178,6 +178,7 @@ define('AUTOMATION_NOTES_KO', -1);
 /** @uses testcase.class.php */
 define('TESTCASE_EXECUTION_TYPE_MANUAL', 1);
 define('TESTCASE_EXECUTION_TYPE_AUTO', 2);
+define('TESTCASE_EXECUTION_TYPE_TO_BE_AUTOMATED', 3);
 
 define('REMOVEME', 'd8ba8cfb-ca92-4fa5-83c2-551977d405fb');
 

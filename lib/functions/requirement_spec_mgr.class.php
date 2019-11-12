@@ -1390,6 +1390,37 @@ function html_table_of_custom_field_values($id,$child_id,$tproject_id)
 	return $xml;
  }
 
+//AB20141119>
+function select_reqs($srs_id){
+   $sql = "SELECT id,req_doc_id FROM requirements WHERE srs_id = " . $srs_id;   
+   $req_ids = $this->db->fetchRowsIntoMap($sql,'id');
+   if(!isset($req_ids)){
+       $req_ids = array();
+   }
+   return $req_ids;
+}
+
+function update_obsolete(&$curreqs, $id){
+    $idx = null;
+    foreach($curreqs as $key => $req){
+        if($req['req_doc_id'] == $id){
+            $idx = $key;
+            break;
+        }
+    }
+    if(isset($idx)){
+        unset($curreqs[$idx]);
+    }
+}
+
+function set_obsolete($reqs, $tproject_id,$reqSpecID,$author_id, $my){
+    foreach($reqs as $key => $req){
+        $req['docid'] = $req['req_doc_id'];
+        $req['status'] = TL_REQ_STATUS_OBSOLETE;
+        $this->req_mgr->createFromMap($req,$tproject_id,$reqSpecID,$author_id, null,$my['options']);
+    }
+}
+//<AB20141119
 
  /**
   * create a req spec tree on system from $xml data
@@ -1537,6 +1568,11 @@ function createFromXML($xml,$tproject_id,$parent_id,$author_id,$filters = null,$
       $skip_level = -1;
       $container_id[$depth+1] = ($reqSpecID = $result['id']); 
       $reqSet = $items[$idx]['requirements'];
+ 
+//AB20141119>
+      $curreqs = $this->select_reqs($reqSpecID);
+//<AB20141119
+      
       $create_req = (!$has_filters || isset($copy_req[$idx])) && !is_null($reqSet);
       if($create_req)
       {
@@ -1545,11 +1581,17 @@ function createFromXML($xml,$tproject_id,$parent_id,$author_id,$filters = null,$
         for($jdx = 0;$jdx < $items_qty; $jdx++)
         {
           $req = $reqSet[$keys2insert[$jdx]];
+//AB20141119>
+          $this->update_obsolete($curreqs, $req['docid']);
+//<AB20141119
           $dummy = $this->req_mgr->createFromMap($req,$tproject_id,$reqSpecID,$author_id, null,$my['options']);
           $user_feedback = array_merge($user_feedback,$dummy);
         } 
       }  // if($create_req)   
 
+//AB20141119>
+      $this->set_obsolete($curreqs,$tproject_id,$reqSpecID,$author_id,$my);
+//<AB20141119
       if(isset($items[$idx]['relations']))
       {  
         $relationsMap = $items[$idx]['relations'];

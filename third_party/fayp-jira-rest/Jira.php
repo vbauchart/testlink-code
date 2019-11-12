@@ -151,22 +151,26 @@ class Jira
         return false;
     }
 
-    public function queryIssue($query)
+    //public function queryIssue($query)
+	public function queryIssue($query,$args='')
     {
         function createPairs($obj) {
             $str = "";
             foreach ($obj as $key => $value) {
-                if ($key != 'jql') {
-                    $str .= "$key=$value&";
-                } else {
-                    $str .= trim($value, '"\'@') . '&';
-                }
+                if ($key == 'jql') {
+					$str .= trim($value, '"\'@') . '&';
+                } else if ($key == 'JQL') { //uppercase means: don't trim quotes, use it 'as is'
+					$str = $value;
+				} else{
+					$str .= "$key=$value&";
+				}
             }
             return rtrim($str, '&');
         }
         $qs = createPairs($query);
         $qs = urlencode($qs);
-        $this->request->OpenConnect($this->host . 'search?jql=' . $qs);
+        //$this->request->OpenConnect($this->host . 'search?jql=' . $qs);
+		$this->request->OpenConnect($this->host . 'search?jql=' . $qs . $args);
         $this->request->execute();
         $result = json_decode($this->request->getResponseBody());
         if (isset($result->issues)) {

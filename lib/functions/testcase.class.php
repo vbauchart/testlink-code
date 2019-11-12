@@ -1,4 +1,4 @@
-<?php
+<?php 
 /** 
  * TestLink Open Source Project - http://testlink.sourceforge.net/
  * This script is distributed under the GNU General Public License 2 or later. 
@@ -615,6 +615,8 @@ class testcase extends tlObjectWithAttachments
     $debugMsg = 'Class:' . __CLASS__ . ' - Method: ' . __FUNCTION__;
     $tcase_version_id = $this->tree_manager->new_node($item->id,$this->node_types_descr_id['testcase_version']);
 
+    $this->CKEditorCopyAndPasteCleanUp($item,array('summary','preconditions')); 
+	
     $sql = "/* $debugMsg */ INSERT INTO {$this->tables['tcversions']} " .
            " (id,tc_external_id,version,summary,preconditions," . 
            "  author_id,creation_ts,execution_type,importance ";
@@ -1069,13 +1071,19 @@ class testcase extends tlObjectWithAttachments
       $sql[] = " UPDATE {$this->tables['nodes_hierarchy']} SET name='" .
                $this->db->prepare_string($name) . "' WHERE id= {$id}";
     
+      $k2e = array('summary','preconditions');
+      $item = new stdClass();
+      $item->summary = $summary;
+      $item->preconditions = $preconditions;
+      $this->CKEditorCopyAndPasteCleanUp($item,$k2e); 
+      
       $dummy = " UPDATE {$this->tables['tcversions']} " .
-               " SET summary='" . $this->db->prepare_string($summary) . "'," .
+               " SET summary='" . $this->db->prepare_string($item->summary) . "'," .
                " updater_id=" . $this->db->prepare_int($user_id) . ", " .
                " modification_ts = " . $this->db->db_now() . "," .
                " execution_type=" . $this->db->prepare_int($execution_type) . ", " . 
                " importance=" . $this->db->prepare_int($importance) . "," .
-               " preconditions='" . $this->db->prepare_string($preconditions) . "' ";
+               " preconditions='" . $this->db->prepare_string($item->preconditions) . "' ";
 
 
       if( !is_null($attrib['status']) )    
@@ -4955,6 +4963,13 @@ class testcase extends tlObjectWithAttachments
     $dummy = (isset($this->execution_types[$dummy])) ? $dummy : TESTCASE_EXECUTION_TYPE_MANUAL;
       
     $item_id = $this->tree_manager->new_node($tcversion_id,$this->node_types_descr_id['testcase_step']);
+
+    $k2e = array('actions','expected_results');
+    $item = new stdClass();
+    $item->actions = $actions;
+    $item->expected_results = $expected_results;
+    $this->CKEditorCopyAndPasteCleanUp($item,$k2e); 
+
     $sql = "/* $debugMsg */ INSERT INTO {$this->tables['tcsteps']} " .
            " (id,step_number,actions,expected_results,execution_type) " .
            " VALUES({$item_id},{$step_number},'" . $this->db->prepare_string($actions) . "','" .
@@ -5163,10 +5178,17 @@ class testcase extends tlObjectWithAttachments
   {
     $debugMsg = 'Class:' . __CLASS__ . ' - Method: ' . __FUNCTION__;
       $ret = array();
+
+    $k2e = array('actions','expected_results');
+    $item = new stdClass();
+    $item->actions = $actions;
+    $item->expected_results = $expected_results;
+    $this->CKEditorCopyAndPasteCleanUp($item,$k2e); 
+
     $sql = "/* $debugMsg */ UPDATE {$this->tables['tcsteps']} " .
            " SET step_number=" . $this->db->prepare_int($step_number) . "," .
-           " actions='" . $this->db->prepare_string($actions) . "', " .
-           " expected_results='" . $this->db->prepare_string($expected_results) . "', " .
+           " actions='" . $this->db->prepare_string($item->actions) . "', " .
+           " expected_results='" . $this->db->prepare_string($item->expected_results) . "', " .
            " execution_type = " . $this->db->prepare_int($execution_type)  .
            " WHERE id = " . $this->db->prepare_int($step_id);
        
@@ -6821,7 +6843,7 @@ class testcase extends tlObjectWithAttachments
   {
     $debugMsg = 'Class:' . __CLASS__ . ' - Method: ' . __FUNCTION__;
     $sql = "/* {$debugMsg} */ " . 
-           " SELECT id, execution_id,tcstep_id,notes,status FROM {$this->tables['execution_tcsteps']} " .
+           " SELECT execution_id,tcstep_id,notes,status FROM {$this->tables['execution_tcsteps']} " .
            " WHERE execution_id = " . intval($execution_id);
 
     $rs = $this->db->fetchRowsIntoMap($sql,'tcstep_id');       
@@ -7351,5 +7373,28 @@ class testcase extends tlObjectWithAttachments
     return $sk;
   }
  
+  /**
+   *
+   */
+  function CKEditorCopyAndPasteCleanUp(&$items,$keys)
+  {
+    $offending = array('<body id="cke_pastebin"','</body>');
+    $good = array('&lt;body id="cke_pastebin"','&lt;/body&gt;');
+    foreach($keys as $fi)
+    {
+      //$items->$fi = str_ireplace($offending,$good,$items->$fi);
+	  	if (strpos(strtolower($items->$fi),'cke_pastebin') !== false) {
+			tLog(basename(__FILE__) . '.' . __FUNCTION__ . '::item.before','ERROR',"AB");
+			tLog(print_r($items->$fi,TRUE),'ERROR',"cke_pastebin");									
+			$items->$fi = str_ireplace($offending,$good,$items->$fi);
+			tLog(basename(__FILE__) . '.' . __FUNCTION__ . '::item.after','ERROR',"AB");
+			tLog(print_r($items->$fi,TRUE),'ERROR',"cke_pastebin");									
+		}else{
+			//tLog(basename(__FILE__) . '.' . __FUNCTION__ . '::items.OK','ERROR',"AB");
+			//tLog(print_r($items,TRUE),'ERROR',"cke_pastebin");									
+		}
+
+    } 
+  }
 
 }  

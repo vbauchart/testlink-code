@@ -89,8 +89,12 @@ function mirrorCheckbox(sourceOID,targetOID)
     
     <tr>
     <td>{$labels.export_tcase_external_id}</td>
+<!-- AB 180219: remove default checked
     <td><input type="checkbox" name="exportTestCaseExternalID" id="exportTestCaseExternalID" 
                value="1" onclick="mirrorCheckbox('exportTestCaseExternalID','addPrefix');" checked />
+-->
+    <td><input type="checkbox" name="exportTestCaseExternalID" id="exportTestCaseExternalID" 
+               value="1" onclick="mirrorCheckbox('exportTestCaseExternalID','addPrefix');"  />
     {$labels.export_with_prefix}
     <input type="checkbox" name="addPrefix" id="addPrefix" value="1">
     </td>

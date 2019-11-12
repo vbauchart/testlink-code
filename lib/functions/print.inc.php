@@ -1368,6 +1368,10 @@ function renderTestCaseForPrinting(&$db,&$node,&$options,$env,$context,$indentLe
       $code .= $labels['execution_type_auto'];          
     break;
 
+    case TESTCASE_EXECUTION_TYPE_TO_BE_AUTOMATED:
+      $code .= $labels['execution_type_to_be_automated'];
+    break;
+
     case TESTCASE_EXECUTION_TYPE_MANUAL:
     default:
       $code .= $labels['execution_type_manual'];          
@@ -1990,6 +1994,10 @@ function buildTestExecResults(&$dbHandler,&$its,$exec_info,$opt,$buildCF=null)
   {
     case TESTCASE_EXECUTION_TYPE_AUTO:
       $etk = 'execution_type_auto';          
+    break;
+
+    case TESTCASE_EXECUTION_TYPE_TO_BE_AUTOMATED:
+      $etk = 'execution_type_to_be_automated';
     break;
 
     case TESTCASE_EXECUTION_TYPE_MANUAL:
