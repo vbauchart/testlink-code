@@ -35,7 +35,9 @@ function getUniqueFileName($fExt)
  **/
 function getFileExtension($fName,$default)
 {
-	$fExt = pathinfo($fName);
+	$CanonfName = str_replace('\\', '/', $fName);
+
+	$fExt = pathinfo($CanonfName);
 	if (isset($fExt['extension']))
 		$fExt = $fExt['extension'];
 	else
@@ -54,7 +56,9 @@ function getFileExtension($fName,$default)
 function getFileContents($fName)
 {
 	$fContents = null;
-	$fd = fopen($fName,"rb");
+
+	$CanonfName = str_replace('\\', '/', $fName);
+	$fd = fopen($CanonfName,"rb");
 	if ($fd)
 	{
 		$fContents = fread($fd,filesize($fName));
@@ -138,7 +142,10 @@ function gzip_uncompress_content($content,$fileSize)
 function gzip_readFileContent($fName,$fileSize)
 {
 	$content = null;
-	$zp = gzopen($fName, "rb9");
+
+	$CanonfName = str_replace('\\', '/', $fName);
+
+	$zp = gzopen($CanonfName, "rb9");
 	if ($zp)
 	{
 		$content = gzread($zp,$fileSize);
