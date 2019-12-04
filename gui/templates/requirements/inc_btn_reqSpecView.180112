@@ -52,12 +52,6 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
 {* AB20141218> *}
       <input type="button" name="exportReqDoors" value="Export Coverage"
              onclick="location='{$req_export_doors_url}'" />
-{* AB20180112> *}
-	  {if $gui->jql != ''}
-      <input type="button" name="syncJira" value="ReSync JIRA"
-             onclick="location='{$req_sync_jira_url}'" />
-	  {/if}
-{* <AB20180112 *}
 {* <AB20141218 *}
       <input type="button" name="freeze_req_spec" value="{$labels.btn_freeze_req_spec}"
              onclick="delete_confirmation({$gui->req_spec.id},'{$gui->req_spec.title|escape:'javascript'|escape}',

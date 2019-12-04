@@ -107,6 +107,13 @@ viewer for requirement
       </form>
   {/if}
 
+{* AB171115 Beg *}
+  <form style="display: inline;" method="post" action="lib/requirements/reqCompareJira.php" name="version_compare">
+      <input type="hidden" name="requirement_id" value="{$args_req.id}" />
+      <input type="submit" name="compare_versions" value="Compare to JIRA TECHNO" />
+  </form>
+{* AB171115 End *}
+ 
   {* Option to print single requirement *}
   <form style="display: inline;" method="post" action="" name="reqPrinterFriendly">
     <input type="button" name="printerFriendly" value="{$labels.btn_print_view}" 

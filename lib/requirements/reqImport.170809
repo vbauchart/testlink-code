@@ -18,7 +18,6 @@ require_once("common.php");
 require_once('requirements.inc.php');
 require_once('xml.inc.php');
 require_once('csv.inc.php');
-require_once('reqJiraRestJsonXml.php');
 
 testlinkInitPage($db,false,false,"checkRights");
 
@@ -78,60 +77,30 @@ function doExecuteImport($fileName,&$argsObj,&$reqSpecMgr,&$reqMgr)
   $opts['actionOnHit'] = $argsObj->actionOnHit;
     
   // manage file upload process
-  switch($context->importType){
-	  case 'XML':
-		$source = isset($_FILES['uploadedFile']['tmp_name']) ? $_FILES['uploadedFile']['tmp_name'] : null;
-		if (($source != 'none') && ($source != '' ))
-		{ 
-			if (move_uploaded_file($source, $fileName))
-			{
-				if( $argsObj->importType == 'XML' )
-				{
-					$retval->file_check['status_ok']=!(($xml=simplexml_load_file_wrapper($fileName)) === FALSE);
-					if( !$retval->file_check['status_ok'] )
-					{
-						$retval->file_check['msg'] = lang_get('import_failed_xml_load_failed');
-					}  
-				}
-			} 
-		}
-		else
-		{
-			$retval->file_check=array('status_ok' => 0, 'msg' => lang_get('please_choose_req_file'));
-		} 
-		break;
-		
-	  case 'JIRA TECHNO JSON':
-		$jql = $argsObj->jql;
-//tLog(basename(__FILE__) . '.' . __FUNCTION__ . '::jql','ERROR',"AB");
-//tLog(print_r($jql,TRUE),'ERROR',"AB");
-  	    $pg = getJson($jql);
-		if(!pg){
-			break;
-		}
-		$prj = $pg['prj'];
-		$groups = $pg['grp'];
-		  
-		tLog(basename(__FILE__) . '.' . __FUNCTION__ . '::prj','ERROR',"AB");
-		tLog(print_r($prj,TRUE),'ERROR',"AB");									
-		//tLog(basename(__FILE__) . '.' . __FUNCTION__ . '::groups','ERROR',"AB");
-		//tLog(print_r($groups,TRUE),'ERROR',"AB");
-
-		$xml = json2xml($prj,$groups,$jql);
-		tLog(basename(__FILE__) . '.' . __FUNCTION__ . '::xml','ERROR',"AB");
-		tLog(print_r($xml,TRUE),'ERROR',"AB");
-		$context->importType = 'XML';
-
-		//$txt = $xml->saveXML();
-		//tLog(basename(__FILE__) . '.' . __FUNCTION__ . '::txt','ERROR',"AB");
-		//tLog(print_r($txt,TRUE),'ERROR',"AB");
-		break;		
+  $source = isset($_FILES['uploadedFile']['tmp_name']) ? $_FILES['uploadedFile']['tmp_name'] : null;
+  if (($source != 'none') && ($source != '' ))
+  { 
+    if (move_uploaded_file($source, $fileName))
+    {
+      if( $argsObj->importType == 'XML' )
+      {
+        $retval->file_check['status_ok']=!(($xml=simplexml_load_file_wrapper($fileName)) === FALSE);
+        if( !$retval->file_check['status_ok'] )
+        {
+          $retval->file_check['msg'] = lang_get('import_failed_xml_load_failed');
+        }  
+      }
+    } 
   }
+  else
+  {
+    $retval->file_check=array('status_ok' => 0, 'msg' => lang_get('please_choose_req_file'));
+  } 
   // ----------------------------------------------------------------------------------------------
 
   if($retval->file_check['status_ok'])
   {
-    if($context->importType == 'XML')
+    if($argsObj->importType == 'XML')
     {
       // If there is no req_spec in XML, and req_spec_id 
       // from context is null, we must raise an error, to avoid ghots requirements in DB
@@ -151,9 +120,7 @@ function doExecuteImport($fileName,&$argsObj,&$reqSpecMgr,&$reqMgr)
       $retval->items = $dummy['items'];
       $retval->userFeedback = $dummy['userFeedback'];
     }
-	if($argsObj->importType == 'XML'){
-		unlink($fileName);
-	}
+    unlink($fileName);
     $retval->msg = lang_get('req_import_finished');
   }
 
@@ -183,7 +150,6 @@ function init_args()
    
   $args->req_spec_id = isset($request['req_spec_id']) ? intval($request['req_spec_id']) : null;
   $args->importType = isset($request['importType']) ? $request['importType'] : null;
-  $args->jql = isset($request['jql']) ? $request['jql'] : null;							
   $args->emptyScope = isset($request['noEmpty']) ? $request['noEmpty'] : null;
   $args->conflictSolution = isset($request['conflicts']) ? $request['conflicts'] : null;
   $args->bUpload = isset($request['uploadFile']) ? 1 : 0;
@@ -193,7 +159,7 @@ function init_args()
   $args->skip_frozen_req = isset($request['skip_frozen_req']) ? 1 : 0;
 
     
-  $args->doAction = 'askFileName';
+  $args->doAction='askFileName';
   $action_keys = array('uploadFile','executeImport');
   foreach($action_keys as $action)
   {
@@ -246,7 +212,6 @@ function initializeGui(&$dbHandler,&$argsObj,$session,&$reqSpecMgr,&$reqMgr)
     case 'tree':
       $gui->main_descr = sprintf(lang_get('tproject_import_req_spec'),$argsObj->tproject_name);
       $gui->importTypes = $reqSpecMgr->get_import_file_types();
-	  $gui->importTypes['JIRA TECHNO JSON'] = 'JIRA TECHNO JSON';
     break;
       
     case 'branch':
@@ -264,13 +229,7 @@ function initializeGui(&$dbHandler,&$argsObj,$session,&$reqSpecMgr,&$reqMgr)
 
   
   $gui->importType = $argsObj->importType;
-  if($gui->importType == 'XML'){
-	$gui->fileName = TL_TEMP_PATH . "importReq-" . session_id() . ".tmp";
-	$gui->jql = '';
-  }else{
-	$gui->fileName = '';
-	$gui->jql = $argsObj->jql;
-  }
+  $gui->fileName = TL_TEMP_PATH . "importReq-" . session_id() . ".tmp";
     
   $gui->importFileGui = new stdClass();
   $gui->importFileGui->importTypes = $gui->importTypes;
@@ -318,6 +277,7 @@ function checkRights(&$db,&$user)
 /**
  * 
  *
+ */
 function doReqImportFromXML(&$reqSpecMgr,&$reqMgr,&$simpleXMLObj,$importContext,$importOptions)
 {
   $items = array();
@@ -343,7 +303,6 @@ function doReqImportFromXML(&$reqSpecMgr,&$reqMgr,&$simpleXMLObj,$importContext,
   }
     return $items;
 }
- */
 
 
 /**

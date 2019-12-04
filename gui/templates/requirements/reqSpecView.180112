@@ -34,11 +34,6 @@ Purpose: view a requirement specification
 {* AB20141218> *}
 {$url_args="reqExportDoors.php?req_spec_id="} 
 {$req_export_doors_url="$basehref$req_module$url_args$reqSpecID"}
-
-{* AB20180112> *}
-{$url_args="reqSyncJira.php?req_spec_id="} 
-{$req_sync_jira_url="$basehref$req_module$url_args$reqSpecID"}
-{* <AB20180112 *}
 {* <AB20141218 *}
 
 {$url_args="reqImport.php?scope=branch&req_spec_id="}

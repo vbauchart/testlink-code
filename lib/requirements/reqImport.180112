@@ -106,9 +106,6 @@ function doExecuteImport($fileName,&$argsObj,&$reqSpecMgr,&$reqMgr)
 //tLog(basename(__FILE__) . '.' . __FUNCTION__ . '::jql','ERROR',"AB");
 //tLog(print_r($jql,TRUE),'ERROR',"AB");
   	    $pg = getJson($jql);
-		if(!pg){
-			break;
-		}
 		$prj = $pg['prj'];
 		$groups = $pg['grp'];
 		  
@@ -117,12 +114,12 @@ function doExecuteImport($fileName,&$argsObj,&$reqSpecMgr,&$reqMgr)
 		//tLog(basename(__FILE__) . '.' . __FUNCTION__ . '::groups','ERROR',"AB");
 		//tLog(print_r($groups,TRUE),'ERROR',"AB");
 
-		$xml = json2xml($prj,$groups,$jql);
+		  $xml = json2xml($prj,$groups,$jql);
 		tLog(basename(__FILE__) . '.' . __FUNCTION__ . '::xml','ERROR',"AB");
 		tLog(print_r($xml,TRUE),'ERROR',"AB");
 		$context->importType = 'XML';
 
-		//$txt = $xml->saveXML();
+		  //$txt = $xml->saveXML();
 		//tLog(basename(__FILE__) . '.' . __FUNCTION__ . '::txt','ERROR',"AB");
 		//tLog(print_r($txt,TRUE),'ERROR',"AB");
 		break;		
@@ -318,6 +315,7 @@ function checkRights(&$db,&$user)
 /**
  * 
  *
+ */
 function doReqImportFromXML(&$reqSpecMgr,&$reqMgr,&$simpleXMLObj,$importContext,$importOptions)
 {
   $items = array();
@@ -343,7 +341,6 @@ function doReqImportFromXML(&$reqSpecMgr,&$reqMgr,&$simpleXMLObj,$importContext,
   }
     return $items;
 }
- */
 
 
 /**

@@ -1,0 +1,252 @@
+<?php
+//AB20150121>
+/** Coverage Export to Doors
+ *
+**/
+require_once("../../config.inc.php");
+require_once("csv.inc.php");
+require_once("xml.inc.php");
+require_once("common.php");
+require_once("requirements.inc.php");
+
+testlinkInitPage($db,false,false,"checkRights");
+$templateCfg = templateConfiguration();
+$req_spec_mgr = new requirement_spec_mgr($db);
+$args = init_args();
+$gui = initializeGui($db,$args,$req_spec_mgr);
+
+switch($args->doAction)
+{
+  case 'export':
+    $smarty = new TLSmarty();
+    $smarty->assign('gui', $gui);
+    $smarty->display($templateCfg->template_dir . $templateCfg->default_template);
+  break;
+    
+  case 'doExport':
+    $req_mgr = new requirement_mgr($db);
+    $tplan_mgr = new testplan($db);
+    $stat_map = setUpReqStatusCfg();
+    $args->TestPlanName = $gui->tplans[$args->testPlan];
+    doExport($args,$req_spec_mgr,$req_mgr,$tplan_mgr,$stat_map);
+  break;
+}
+
+function checkRights(&$db,&$user)
+{
+  return $user->hasRight($db,'mgt_view_req');
+}
+
+function init_args()
+{
+  $_REQUEST = strings_stripSlashes($_REQUEST);
+  $args = new stdClass();
+  $args->doAction = isset($_REQUEST['doAction']) ? $_REQUEST['doAction'] : 'export';
+  $args->exportType = isset($_REQUEST['exportType']) ? $_REQUEST['exportType'] : null;
+  $args->req_spec_id = isset($_REQUEST['req_spec_id']) ? $_REQUEST['req_spec_id'] : null;
+  $args->export_filename = isset($_REQUEST['export_filename']) ? $_REQUEST['export_filename'] : "";
+  $args->testPlan = isset($_REQUEST['testPlan']) ? $_REQUEST['testPlan'] : null;
+  
+  $args->tproject_id = isset($_REQUEST['tproject_id']) ? $_REQUEST['tproject_id'] : 0;
+    if( $args->tproject_id == 0 )
+    { 
+    $args->tproject_id = isset($_SESSION['testprojectID']) ? $_SESSION['testprojectID'] : 0;
+  }
+  $args->scope = isset($_REQUEST['scope']) ? $_REQUEST['scope'] : 'items';
+  $args->user = $_SESSION['currentUser']; //AB141223
+  return $args;  
+}
+
+function initializeGui(&$dbHandler,&$argsObj,&$req_spec_mgr)
+{
+  $gui = new stdClass();
+  $gui->exportTypes = array('csv' => "CSV", 'xml' => "XML");
+  $gui->exportType = $argsObj->exportType; 
+  $gui->scope = $argsObj->scope;
+  $gui->tproject_id = $argsObj->tproject_id;
+  
+   $gui->req_spec = $req_spec_mgr->get_by_id($argsObj->req_spec_id);
+   $gui->req_spec_id = $argsObj->req_spec_id;   
+ 
+  $gui->export_filename = trim($argsObj->export_filename);
+  if($gui->export_filename == "")
+  {
+      $srs_id = $gui->req_spec['doc_id'];
+      $exportFileName = $srs_id . "-" . $gui->req_spec['title'];
+      $exportFileName = str_replace(array(" "),array("_"),$exportFileName);
+      $gui->export_filename = $exportFileName . '_' . date('Ymdhis', time());
+  }
+  
+  $gui->tplans = $argsObj->user->getAccessibleTestPlans($dbHandler,$argsObj->tproject_id,null,
+        array('output' =>'combo'));
+
+  return $gui;  
+}
+
+// $coverage = (number of Test Cases linked to Requirement) / (number of Test Cases linked to Requirement within the Test Plan)
+// 
+// if at least one of Test Cases linked to Requirement within the Test Plan has status FAILED
+//    $conformity = FAILED
+// else if at least one of Test Cases linked to Requirement within the Test Plan has status BLOCKED
+//    $conformity = BLOCKED
+// else if ALL Test Cases linked to Requirement within the Test Plan has status NOT RUN
+//    $conformity = NOT RUN
+// else if ALL Test Cases linked to Requirement within the Test Plan has status PASSED
+//    $conformity = PASSED
+// else
+//    $conformity = Number of passed Test Cases / Total number of Test Cases
+function evaluate_req(&$status_code, $total_tcs, &$counters) {
+    //$coverage = 'm/n';
+    $coverage = $counters['total'] . '/' . $total_tcs;
+            
+    //$conformity = 'passed'; //passed|failed|blocked|not run|m/n
+    if( !isset($counters[$status_code['not_run']]) ){
+		$counters[$status_code['not_run']] = 0;
+    }
+    if( !isset($counters[$status_code['failed']]) ){
+		$counters[$status_code['failed']] = 0;
+    }
+    if( !isset($counters[$status_code['blocked']]) ){
+		$counters[$status_code['blocked']] = 0;
+    }
+    if ($counters['total'] == 0) { // Zero test cases linked => uncovered
+		$conformity = 'uncovered';
+    }else if($counters['total'] == $counters[$status_code['not_run']]){
+		$conformity = $status_code['not_run'];
+    }else if($counters[$status_code['failed']] > 0){
+		$conformity = $status_code['failed'];
+    }else if($counters[$status_code['blocked']] > 0){
+		$conformity = $status_code['blocked'];
+    }else if($counters[$status_code['passed']] == $counters['total']){
+		$conformity = $status_code['passed'];
+    }else{
+        $conformity = $counters[$status_code['passed']] . '/' . $counters['total'] . ' passed';
+    }
+    return array($coverage,$conformity);
+}
+
+function getReqStat($req,$tplan_id,&$tplan_mgr,&$req_mgr,&$stat_map){
+    $coverageContext = null;
+    $tcs = (array)$req_mgr->get_coverage($req['id'],$coverageContext);
+    $tc_ids = array();
+    foreach ($tcs as $tc) {
+        $tc_ids[] = $tc['id'];            
+    }
+    $total_tcs = count($tcs);
+    $coverage = '0/0';
+    $conformity = 'uncovered';
+    if($total_tcs > 0){
+        $filters = array('tcase_id' => $tc_ids);
+        $options = array('addExecInfo' => true,'accessKeyType' => 'tcase');
+        $tcaseSet = $tplan_mgr->getLTCVNewGeneration($tplan_id, $filters, $options);
+		if (is_array($tcaseSet)){
+	        $stat = array('total' => 0);
+			foreach ($tcaseSet as $key => $tc_info){
+				$stat['total'] ++;
+				if (isset($tc_info['exec_status'])){
+					$status = $tc_info['exec_status'];
+					if (!isset($stat[$status])){
+						$stat[$status] = 0;
+								}
+					$stat[$status]++;
+				}
+			}
+			list($coverage,$conformity) = evaluate_req($stat_map, $total_tcs, $stat);
+		}
+    }
+    $req['coverage'] = $coverage;
+    $req['conformity'] = $conformity;
+    return $req;
+}
+
+function exportReqDoors(&$req_spec_mgr,&$req_mgr,&$tplan_mgr,
+        $req_spec_id,$tplan_id,$tplan_name,&$stat_map){
+    $reqData = $req_spec_mgr->get_requirements($req_spec_id);
+    foreach ($reqData as $req_id => $req) {
+        $reqData[$req_id] = getReqStat($req, $tplan_id,$tplan_mgr,$req_mgr,$stat_map);
+    }
+    $sKeys = array("req_doc_id","coverage","conformity");
+    $content = exportDataToCSV($reqData,$sKeys,$sKeys,0,',');
+    
+    $header = "# ";
+    $header .= "TimeStamp = " . date('d/m/Y h:i:s', time());
+    $header .= "; ";
+    $header .= "TestPlan = " . $tplan_name;
+    $header .= "\xD\xA";
+    
+    return $header . $content;
+}
+
+function doExport(&$argsObj,&$req_spec_mgr,&$req_mgr,&$tplan_mgr,&$stat_map)
+{
+  $pfn = null;
+  $fileExt = '';
+  switch($argsObj->exportType)
+  {
+    case 'csv':
+        $pfn = "exportReqDoors";
+        $fileExt = '.csv';
+        $content = $pfn($req_spec_mgr,$req_mgr,$tplan_mgr,$argsObj->req_spec_id,
+                $argsObj->testPlan,$argsObj->TestPlanName,$stat_map);
+    break;
+
+    case 'xml': //AB141218: this case is disabled in JavaScript ValidateForm function
+      $pfn = "exportReqSpecToXML";
+      $fileExt = '.xml';
+      $content = TL_XMLEXPORT_HEADER;
+      $optionsForExport['RECURSIVE'] = $argsObj->scope == 'items' ? false : true;
+      $openTag = $argsObj->scope == 'items' ? "requirements>" : 'requirement-specification>';
+      
+      switch($argsObj->scope)
+      {
+        case 'tree':
+          $reqSpecSet = $req_spec_mgr->getFirstLevelInTestProject($argsObj->tproject_id);
+          $reqSpecSet = array_keys($reqSpecSet);
+        break;
+          
+        case 'branch':
+        case 'items':
+          $reqSpecSet = array($argsObj->req_spec_id);
+        break;
+      }
+      
+      $content .= "<" . $openTag . "\n";
+      if(!is_null($reqSpecSet))
+      {
+        foreach($reqSpecSet as $reqSpecID)
+        {
+          $content .= $req_spec_mgr->$pfn($reqSpecID,$argsObj->tproject_id,$optionsForExport);
+        }
+      }
+      $content .= "</" . $openTag . "\n";
+    break;
+  }
+  $argsObj->fileExt = $fileExt;
+
+  if ($pfn)
+  {
+    $fileName = $argsObj->export_filename;
+    if(strtolower(substr($fileName,-4)) != $fileExt){ 
+        $fileName .= $fileExt;
+    }
+    downloadContentsToFile($content,$fileName);
+    exit();
+  }
+}
+
+function setUpReqStatusCfg()
+{
+	$results_cfg = config_get('results');
+	
+	$status_code_map = array();
+	foreach ($results_cfg['status_label_for_exec_ui'] as $status => $label) 
+	{
+		$status_code_map[$status] = $results_cfg['status_code'][$status];
+	}
+	
+	$code_status_map = array_flip($status_code_map);
+
+	return $status_code_map;
+}
+//<AB20150121
+?>

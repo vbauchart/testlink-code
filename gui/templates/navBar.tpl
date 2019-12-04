@@ -30,7 +30,7 @@ title bar + menu
           tabindex="6"><img src="{$tlImages.account}" title="{$labels.title_edit_personal_data}"></a>
         <a href="logout.php" target="_parent" accesskey="q">
         <img src="{$tlImages.logout}" title="{$labels.link_logout}"></a>
-		<a href="mailto:admin@ingenico.com?subject=TestLink Request"><img src="{$tlImages.send_mail}" title="Write to admin"></a>
+		<a href="mailto:vincent.bauchart@ingenico.com?subject=TestLink Request"><img src="{$tlImages.send_mail}" title="Write to admin"></a>
   </span>
   <span style="float:right;">TestLink {$tlVersion|escape}</span>
 </div>

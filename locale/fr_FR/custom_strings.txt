@@ -1,0 +1,4 @@
+<?php
+$TLS_test_status_not_applicable = "N/A";
+$TLS_execution_type_to_be_automated = "A automatiser";
+?>

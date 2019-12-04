@@ -19,9 +19,13 @@ rev :
 </td>
 </tr>
 <tr>
-  <td>{$local_labels.local_file} </td>
+  <td>{$local_labels.local_file} (if XML)</td>
   <td><input type="file" name="uploadedFile" size="{#FILENAME_SIZE#}" 
              maxlength="{#FILENAME_MAXLEN#}"/></td>
+</tr>
+<tr>
+  <td>JQL filter (if JIRA JSON)</td>
+  <td><input type="string" name="jql" size='100'/></td>
 </tr>
 
 <tr>
